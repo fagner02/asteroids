@@ -12,57 +12,57 @@ class enemy {
   public:
     sf::Sprite obj;
     sf::Vector2f drct = sf::Vector2f(0,0);
-    
-    sf::Vector2f generateDrct(float pos1, float pos2, float side1, float side2, bool inverse) {
+
+    sf::Vector2f generateDrct(float pos1, float side1, float side2, bool inverse) {
       float drctX;
       float drctY;
-      
+
       if(pos1 > side1/3 && pos1 < side1*2/3){
         float hypt = sqrt(pow(side1/2, 2) + pow(side2, 2));
         float angle1 = asin(side2/hypt);
 
         float angle = rand() % (int)(((PI - angle1*2) + angle1) + 1);
-        
+
         drctX = sin(angle); //rand() % (hypt + 1);
         drctY = sqrt(1 - pow(drctX, 2)); //sqrt(pow(hypt, 2) - pow(dirctX, 2));
-        
+
         if(inverse) {
           std::swap(drctX, drctY);
         }
-        
+
         float nrml = ((drctX > drctY)? drctX : drctY) * 10;
         drctX /= nrml;
         drctY /= nrml;
-    
+
       } else {
         float hypt1 = sqrt(pow(side2*2, 2) + pow(side1, 2));
         float hypt2 = sqrt(pow(side2/2, 2) + pow(side1, 2));
         float angle1 = asin((side2*2)/hypt1);
         float angle2 = asin((side2/2)/hypt2);
         float angle = (rand() % (int)(angle1 - angle2 + 1)) + angle2;
-       
+
         drctY = sin(angle); //(rand() % ((side2/2)*3 + 1)) + side2/2;
         drctX = sqrt(1 - pow(drctY, 2)); //sqrt(pow(hypt, 2) - pow(dirctY, 2));
-        
+
         if(inverse) {
           std::swap(drctX, drctY);
         }
-       
+
         float nrml = ((drctX > drctY)? drctX : drctY) * 10;
         drctX /= nrml;
         drctY /= nrml;
       }
-      
+
       return sf::Vector2f(drctX, drctY);
     }
-    
+
     void setDrctPos(float width, float height){
       float posX = rand() % (int)(width + 1);
       float posY = rand() % (int)(height + 1);
-      
+
       if(rand() % 2) {
         posX = width * (rand() % 2);
-        this->drct = generateDrct(posY, posX, height, width, true);
+        this->drct = generateDrct(posY, height, width, true);
         if (posY > height/2) {
           this->drct.y *= -1;
         }
@@ -71,7 +71,7 @@ class enemy {
         }
       } else {
         posY = height * (rand() % 2);
-        this->drct = generateDrct(posX, posY, width, height, false);
+        this->drct = generateDrct(posX, width, height, false);
         if (posY > 0) {
           this->drct.y *= -1;
         }
@@ -79,16 +79,16 @@ class enemy {
           this->drct.x *= -1;
         }
       }
-      
+
       this->obj.setPosition(posX, posY);
     }
-    
+
     enemy(sf::Sprite obj, float width, float height) {
       this->setDrctPos(width, height);
       this->obj = obj;
     }
 };
-  
+
 template<typename T>
 void adjust(T& obj);
 template<typename T>
@@ -122,7 +122,7 @@ sf::Vector2f bulletDirection(float rotation) {
   float hypt = (cosn == 0) ? 10: 10/cosn;
   float sideX = sqrt((hypt*hypt) - (100));
   float sideY = 10;
-  
+
   if(rotation >= 0 && rotation < 90) {
     sideY *= -1;
   }
@@ -133,7 +133,7 @@ sf::Vector2f bulletDirection(float rotation) {
   if(rotation >= 180 && rotation < 270) {
     sideX *= -1;
   }
-  
+
   return sf::Vector2f(sideX, sideY);
 }
 
@@ -142,21 +142,21 @@ int main() {
     srand(time(NULL));
     sf::RenderWindow window(sf::VideoMode(800, 600), "asteroids");
     window.setFramerateLimit(60);
-    
+
     sf::Texture triangle;
-    triangle.loadFromFile("triangulo.png");
+    triangle.loadFromFile("src/triangulo.png");
     triangle.setSmooth(true);
 
     sf::Texture circle;
-    circle.loadFromFile("circle.png");
-    
+    circle.loadFromFile("src/circle.png");
+
     sf::RectangleShape lifePoint(sf::Vector2f(50, 50));
     adjust(lifePoint);
     lifePoint.setFillColor(sf::Color::Green);
     lifePoint.setPosition(window.getSize().x - 35, 10);
-    
+
     std::vector<sf::RectangleShape> life;
-    
+
     for(int i = 0; i < 5; i++) {
       life.push_back(sf::RectangleShape(lifePoint));
       life[i].move(-60 * i, 0);
@@ -174,7 +174,7 @@ int main() {
     ponta.setPosition(spr.getPosition());*/
 
     sf::Sprite player = sf::Sprite(spr);
-    sf::Vector2f playerSize = sf::Vector2f(player.getGlobalBounds().width * player.getScale(), player.getGlobalBounds().height * player.getScale());
+    sf::Vector2f playerSize = sf::Vector2f(player.getGlobalBounds().width * player.getScale().x, player.getGlobalBounds().height * player.getScale().y);
 
     sf::Sprite bullet(circle);
     bullet.setScale(0.2, 0.2);
@@ -196,20 +196,20 @@ int main() {
     bool isPressed = false;
     bool intersecting = false;
     std::cout << intersecting;
-    
+
     int score { 0 };
 
     sf::Clock spawn;
     sf::Clock timeBullet;
-    
+
     sf::Clock frameRate;
-    
+
     while (window.isOpen()){
         float delta = frameRate.getElapsedTime().asMilliseconds();
         delta /= 16.6667;
         delta *= 5;
         frameRate.restart();
-        
+
         if(spawn.getElapsedTime().asSeconds() >= 10){
           spawn.restart();
           spawns.push_back(enemy(sf::Sprite(spr),
@@ -238,7 +238,7 @@ int main() {
 
             x.move(0, 0.1 * delta);
             x.rotate(0.1 * delta);
-                        
+
         }
 
         for(auto &x : its){
@@ -248,7 +248,7 @@ int main() {
             spawns.erase(spawns.begin()+x);
             score+=10;
         }
-      
+
         sf::Event evnt;
 
         while (window.pollEvent(evnt)){
@@ -293,7 +293,7 @@ int main() {
               if(!intersecting) {
                     std::cout<<"intersecting:\n";
                   intersecting = true;
-                 
+
                   if(life.size()>0){
                       life.pop_back();
                   }
@@ -337,17 +337,17 @@ int main() {
 
             if(!testAngle(curRotation, angle)) {
                 float newAngle;
-                
+
                 float clockRotation = angle - curRotation;
                 float rclockRotation = 360 - abs(angle - curRotation);
                 rclockRotation = (clockRotation < 0)? rclockRotation : rclockRotation * -1;
                 newAngle = (abs(clockRotation) < abs(rclockRotation)) ? clockRotation : rclockRotation;
-                
+
                 newAngle = (newAngle < 0) ? -0.1 : 0.1;
 
                 player.rotate(newAngle * delta);
             }
-            
+
             if(sideX != 0 && sideY != 0) {
               float pMax = (abs(sideX) > abs(sideY)) ? abs(sideX) : abs(sideY);
               sf::Vector2f newPos(sideX / pMax, sideY / pMax);
@@ -356,7 +356,7 @@ int main() {
         }
 
         text.setString(std::to_string(score));
-        
+
         window.clear();
 
         for (int i = 0; i < (int)bullets.size(); i++) {
