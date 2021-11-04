@@ -175,7 +175,7 @@ class Player {
       float sideY = mousePos.y - playerPos.y;
       float hypt = sqrt(pow(sideX, 2) + pow(sideY, 2));
       float angle;
-
+      int a;
       if (sideX > -1 && sideY < 0)
       {
         angle = (asin(sideX / hypt) * 180.0) / PI;
