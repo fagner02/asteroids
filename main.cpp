@@ -23,8 +23,8 @@ class enemy {
 
         float angle = rand() % (int)(((PI - angle1*2) + angle1) + 1);
 
-        drctX = sin(angle); //rand() % (hypt + 1);
-        drctY = sqrt(1 - pow(drctX, 2)); //sqrt(pow(hypt, 2) - pow(dirctX, 2));
+        drctX = sin(angle); 
+        drctY = sqrt(1 - pow(drctX, 2));
 
         if(inverse) {
           std::swap(drctX, drctY);
@@ -118,23 +118,24 @@ bool testAngle(float curRotation, float angle) {
   return false;
 }
 /**
- * Returns a vector with X and Y direction coordinates
+ * Returns a vector with the bullet's X and Y direction coordinates
 */
 sf::Vector2f bulletDirection(float rotation);
 sf::Vector2f bulletDirection(float rotation) {
   float cosn = cos(rotation / (180 / PI));
-  float hypt = (cosn == 0) ? 10: 10/cosn;
-  float sideX = sqrt((hypt*hypt) - (100));
-  float sideY = 10;
+  float angle = rotation / (180 / PI);
+  float hypt = 10;
+  float sideY = abs(cos(angle) * hypt); 
+  float sideX = abs(sin(angle) * hypt);
 
   if(rotation >= 0 && rotation < 90) {
     sideY *= -1;
   }
-  if(rotation >= 90 && rotation < 180) {
-    sideY *= -1;
+  if(rotation >= 180 && rotation < 270) {
     sideX *= -1;
   }
-  if(rotation >= 180 && rotation < 270) {
+  if(rotation >= 270 && rotation < 360) {
+    sideY *= -1;
     sideX *= -1;
   }
 
@@ -143,10 +144,15 @@ sf::Vector2f bulletDirection(float rotation) {
 
 class Player {
   sf::RenderWindow& window;
+  sf::CircleShape arrow;
   public:
     sf::Sprite sprite;
     sf::Vector2f playerSize;
-    Player(sf::RenderWindow& window, sf::Texture& texture) : window(window), sprite(texture){
+    Player(sf::RenderWindow& window, sf::Texture& texture) : window(window), sprite(texture), arrow(sf::CircleShape(10)) {
+      arrow.setFillColor(sf::Color::White); 
+      arrow.setOrigin(10, 10);
+      arrow.setPosition(100, 80);
+     
       adjust(this->sprite);
       this->sprite.setColor(sf::Color::Cyan);
       this->sprite.setPosition(100, 100);
@@ -163,8 +169,9 @@ class Player {
       float pMax = (abs(sideX) > abs(sideY)) ? abs(sideX) : abs(sideY);
       if (pMax != 0 && pMax > 1) {
         sf::Vector2f newPos((sideX / pMax) * delta, (sideY / pMax) * delta);
-        std::cout << newPos.x << ", " << newPos.y << "\n";
         sprite.move(newPos);
+        arrow.setOrigin(10, 10);
+        arrow.move(newPos);
       }
     }
 
@@ -198,6 +205,7 @@ class Player {
 
       float curRotation = sprite.getRotation();
 
+      std::cout << "angle: " << curRotation << std::endl;
       if (!testAngle(curRotation, angle)) {
         float newAngle;
 
@@ -209,10 +217,13 @@ class Player {
         newAngle = (newAngle < 0) ? -0.1 : 0.1;
 
         sprite.rotate(newAngle * delta);
+        arrow.setOrigin(40, 10);
+        arrow.rotate(newAngle * delta);
       }
     }
     void draw() {
       window.draw(sprite);
+      window.draw(arrow);
     }
 };
 
@@ -221,6 +232,7 @@ int main() {
     srand(time(NULL));
     sf::RenderWindow window(sf::VideoMode(800, 600), "asteroids");
     window.setFramerateLimit(60);
+    window.setKeyRepeatEnabled(false);
 
     sf::Texture triangle;
     if(!triangle.loadFromFile("triangle.png")){
@@ -281,6 +293,8 @@ int main() {
 
     sf::Clock frameRate;
 
+    bool rotate = false;
+    bool left = false;
     while (window.isOpen()){
         float delta = frameRate.getElapsedTime().asMilliseconds();
         delta /= 16.6667;
@@ -323,58 +337,83 @@ int main() {
         }
 
         sf::Event evnt;
-
+        
+        
         while (window.pollEvent(evnt)){
 
-            if (evnt.type == evnt.Closed) {
+            if (evnt.type == sf::Event::Closed) {
                 window.close();
             }
-            if (evnt.type == evnt.Resized) {
+            if (evnt.type == sf::Event::Resized) {
               sf::FloatRect newView(0,0,evnt.size.width, evnt.size.height);
               window.setView(sf::View(newView));
+            }
+
+            if(evnt.type == sf::Event::KeyPressed) {
+              if(evnt.key.code == sf::Keyboard::S) {
+                std::cout << "s";
+                rotate = true;
+              }
+            }
+            if(evnt.type == sf::Event::KeyReleased) {
+              if(evnt.key.code == sf::Keyboard::S) {
+                rotate = false;
+              }
+            }
+            if(evnt.type == sf::Event::MouseButtonPressed) {
+              left = true;
+            }
+            if(evnt.type == sf::Event::MouseButtonReleased) {
+              left = false;
             }
         }
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A )) {
-          if(!isPressed && timeBullet.getElapsedTime().asSeconds() >=0.3) {
+          if(timeBullet.getElapsedTime().asSeconds() >=0.3) {
             bulletsdirection.push_back(bulletDirection(player.sprite.getRotation()));
             timeBullet.restart();
             bullets.push_back(sf::Sprite(bullet));
             bullets[bullets.size()-1].setPosition(player.sprite.getPosition().x - player.playerSize.x / 2, player.sprite.getPosition().y - player.playerSize.y / 2);
-            isPressed = true;
           }
-        } else {
-          isPressed  = false;
         }
 
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-            //sf::FloatRect playerCoord = player.getGlobalBounds();
-            bool intersect = false;
-            for (auto &x : spawns) {
-                /*sf::FloatRect tempCoord = x.getGlobalBounds();
-                intersect = playerCoord.intersects(tempCoord); */
-                if(Collision::PixelPerfectTest(player.sprite, x.obj, 0)){
-                  // std::cout << "intersect";
-                  intersect = true;
-                }
+        //if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
+        if (left) {
+          bool intersect = false;
+          for (auto &x : spawns) {
+            if (Collision::PixelPerfectTest(player.sprite, x.obj, 0)) {
+              intersect = true;
             }
+          }
 
-            if (intersect) {
-              if(!intersecting) {
-                    std::cout<<"intersecting:\n";
-                  intersecting = true;
+          if (intersect)
+          {
+            if (!intersecting)
+            {
+              std::cout << "intersecting:\n";
+              intersecting = true;
 
-                  if(life.size()>0){
-                      life.pop_back();
-                  }
-                  player.sprite.setColor(sf::Color::Blue);
+              if (life.size() > 0)
+              {
+                life.pop_back();
               }
-            } else {
-                intersecting = false;
-                player.sprite.setColor(sf::Color::Red);
+              player.sprite.setColor(sf::Color::Blue);
             }
+          }
+          else
+          {
+            intersecting = false;
+            player.sprite.setColor(sf::Color::Red);
+          }
 
+          if (rotate)
+          {
+            player.rotate(delta);
+          }
+          else
+          {
             player.move(delta);
+          }
         }
 
         if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
@@ -414,7 +453,6 @@ int main() {
         
         if (!life.empty() || (life.empty() && player.sprite.getScale().x > 0.01)) {
             player.draw();
-            //window.draw(ponta);
         }
 
         for (auto &x : spawns) {
