@@ -29,7 +29,7 @@ class enemy {
         if(inverse) {
           std::swap(drctX, drctY);
         }
-
+ 
         float nrml = ((drctX > drctY)? drctX : drctY) * 10;
         drctX /= nrml;
         drctY /= nrml;
@@ -48,7 +48,7 @@ class enemy {
           std::swap(drctX, drctY);
         }
 
-        float nrml = ((drctX > drctY)? drctX : drctY) * 10;
+        float nrml = ((drctX > drctY)? drctX : drctY);
         drctX /= nrml;
         drctY /= nrml;
       }
@@ -82,14 +82,20 @@ class enemy {
 
       this->obj.setPosition(posX, posY);
     }
+    
+    void update(float delta) {
+      this->obj.move(this->drct * delta);
+      this->obj.rotate(1 * delta);
+    }
+    void draw(sf::RenderWindow &window) {
+      window.draw(this->obj);
+    }
 
-    enemy(sf::Sprite obj, float width, float height) {
+    enemy(sf::Sprite spr, float width, float height) : obj(spr){
       this->setDrctPos(width, height);
-      this->obj = obj;
     }
 };
-
-
+sf::Texture n;
 
 template<typename T>
 void adjust(T& obj);
@@ -144,14 +150,14 @@ sf::Vector2f bulletDirection(float rotation) {
 
 class Player {
   sf::RenderWindow& window;
-  sf::CircleShape arrow;
+  //sf::CircleShape arrow;
   public:
     sf::Sprite sprite;
     sf::Vector2f playerSize;
-    Player(sf::RenderWindow& window, sf::Texture& texture) : window(window), sprite(texture), arrow(sf::CircleShape(10)) {
-      arrow.setFillColor(sf::Color::White); 
-      arrow.setOrigin(10, 10);
-      arrow.setPosition(100, 80);
+    Player(sf::RenderWindow& window, sf::Texture& texture) : window(window), sprite(texture) {
+      // arrow.setFillColor(sf::Color::White); 
+      // arrow.setOrigin(10, 10);
+      // arrow.setPosition(100, 80);
      
       adjust(this->sprite);
       this->sprite.setColor(sf::Color::Cyan);
@@ -170,8 +176,8 @@ class Player {
       if (pMax != 0 && pMax > 1) {
         sf::Vector2f newPos((sideX / pMax) * delta, (sideY / pMax) * delta);
         sprite.move(newPos);
-        arrow.setOrigin(10, 10);
-        arrow.move(newPos);
+        // arrow.setOrigin(10, 10);
+        // arrow.move(newPos);
       }
     }
 
@@ -186,21 +192,21 @@ class Player {
       if (sideX > -1 && sideY < 0)
       {
         angle = (asin(sideX / hypt) * 180.0) / PI;
-        angle += 270;
       }
       if (sideX < 0 && sideY < 0)
       {
         angle = (asin(abs(sideY) / hypt) * 180.0) / PI;
-        angle += 180;
+        angle += 270;
       }
       if (sideX < 0 && sideY > -1)
       {
         angle = (asin(abs(sideX) / hypt) * 180.0) / PI;
-        angle += 90;
+        angle += 180;
       }
       if (sideX > -1 && sideY > -1)
       {
         angle = (asin(sideY / hypt) * 180.0) / PI;
+        angle += 90;
       }
 
       float curRotation = sprite.getRotation();
@@ -214,16 +220,50 @@ class Player {
         rclockRotation = (clockRotation < 0) ? rclockRotation : rclockRotation * -1;
         newAngle = (abs(clockRotation) < abs(rclockRotation)) ? clockRotation : rclockRotation;
 
-        newAngle = (newAngle < 0) ? -0.1 : 0.1;
+        newAngle = (newAngle < 0) ? -1 : 1;
 
         sprite.rotate(newAngle * delta);
-        arrow.setOrigin(40, 10);
-        arrow.rotate(newAngle * delta);
+        // arrow.setOrigin(10, 20);
+        // arrow.rotate(newAngle * delta);
       }
     }
     void draw() {
       window.draw(sprite);
-      window.draw(arrow);
+    }
+};
+
+class Bullet {
+  public:
+    sf::Sprite sprite;
+    sf::Vector2f direction = sf::Vector2f(0, 0);
+    bool toErase = false;
+    Bullet(){
+
+    }
+
+    void setDirection(float rotation)
+    {
+      float cosn = cos(rotation / (180 / PI));
+      float angle = rotation / (180 / PI);
+      float hypt = 10;
+      float sideY = abs(cos(angle) * hypt);
+      float sideX = abs(sin(angle) * hypt);
+
+      if (rotation >= 0 && rotation < 90)
+      {
+        sideY *= -1;
+      }
+      if (rotation >= 180 && rotation < 270)
+      {
+        sideX *= -1;
+      }
+      if (rotation >= 270 && rotation < 360)
+      {
+        sideY *= -1;
+        sideX *= -1;
+      }
+
+      direction = sf::Vector2f(sideX, sideY);
     }
 };
 
@@ -263,6 +303,16 @@ int main() {
     spr.setPosition(100, 100);
     spr.setScale(0.1, 0.1);
 
+    sf::Texture enmTexture;
+    if(!enmTexture.loadFromFile("enemy.png")){
+      std::cout << "error loading picture";
+    }
+    sf::Sprite enmSprite(enmTexture);
+    adjust(enmSprite);
+    enmSprite.setColor(sf::Color::Cyan);
+    enmSprite.setPosition(100, 100);
+    enmSprite.setScale(0.1, 0.1);
+
     Player player(window, triangle);
 
     sf::Sprite bullet(circle);
@@ -278,9 +328,9 @@ int main() {
     text.setCharacterSize(100);
     text.setFillColor(sf::Color::White);
 
-    std::vector<sf::Sprite> bullets{};
+    std::vector<Bullet> bullets{};
 
-    std::vector<enemy> spawns;
+    std::vector<enemy> spawns{};
 
     bool isPressed = false;
     bool intersecting = false;
@@ -295,16 +345,16 @@ int main() {
 
     bool rotate = false;
     bool left = false;
+
     while (window.isOpen()){
         float delta = frameRate.getElapsedTime().asMilliseconds();
         delta /= 16.6667;
         delta *= 5;
         frameRate.restart();
 
-        if(spawn.getElapsedTime().asSeconds() >= 10){
+        if(spawn.getElapsedTime().asSeconds() >= 3){
           spawn.restart();
-          spawns.push_back(enemy(sf::Sprite(spr),
-          window.getSize().x, window.getSize().y));
+          spawns.push_back(enemy(enmSprite, window.getSize().x, window.getSize().y));
         }
 
         std::vector<int> its;
@@ -315,17 +365,15 @@ int main() {
             bool intersect = false;
             sf::FloatRect enmrect = x.getGlobalBounds();
             for (auto &y : bullets){
-                sf::FloatRect rect = y.getGlobalBounds();
+                sf::FloatRect rect = y.sprite.getGlobalBounds();
 
                 intersect = rect.intersects(enmrect);
                 if(intersect){
-                    its.push_back(i);
+                  y.toErase = true;
+                  its.push_back(i);
                 }
             }
-
-            x.move(0, 0.1 * delta);
-            x.rotate(0.1 * delta);
-
+            spawns[i].update(delta);
         }
 
         for(auto &x : its){
@@ -348,37 +396,48 @@ int main() {
               sf::FloatRect newView(0,0,evnt.size.width, evnt.size.height);
               window.setView(sf::View(newView));
             }
-
-            if(evnt.type == sf::Event::KeyPressed) {
-              if(evnt.key.code == sf::Keyboard::S) {
-                std::cout << "s";
-                rotate = true;
-              }
-            }
-            if(evnt.type == sf::Event::KeyReleased) {
-              if(evnt.key.code == sf::Keyboard::S) {
-                rotate = false;
-              }
-            }
-            if(evnt.type == sf::Event::MouseButtonPressed) {
-              left = true;
-            }
-            if(evnt.type == sf::Event::MouseButtonReleased) {
-              left = false;
-            }
+            
+            // if(evnt.type == sf::Event::MouseButtonPressed) {
+            //   std::cout << "mouse in";
+            //   left = true;
+            // }
+            // if(evnt.type == sf::Event::MouseButtonReleased) {
+            //   std::cout << "mouse out";
+            //   left = false;
+            // }
+            // if(evnt.type == sf::Event::KeyPressed) {
+            //   if(evnt.key.code == sf::Keyboard::S) {
+            //     std::cout << "s in";
+            //     rotate = true;
+            //   }
+            // }
+            // if(evnt.type == sf::Event::KeyReleased) {
+            //   if(evnt.key.code == sf::Keyboard::S) {
+            //     std::cout << "s out";
+            //     rotate = false;
+            //   }
+            // }
+            
         }
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A )) {
           if(timeBullet.getElapsedTime().asSeconds() >=0.3) {
-            bulletsdirection.push_back(bulletDirection(player.sprite.getRotation()));
             timeBullet.restart();
-            bullets.push_back(sf::Sprite(bullet));
-            bullets[bullets.size()-1].setPosition(player.sprite.getPosition().x - player.playerSize.x / 2, player.sprite.getPosition().y - player.playerSize.y / 2);
+            Bullet temp;
+            temp.setDirection(player.sprite.getRotation());
+            temp.sprite = bullet;
+            temp.sprite.setPosition(player.sprite.getPosition().x - player.playerSize.x / 2, player.sprite.getPosition().y - player.playerSize.y / 2);
+            bullets.push_back(temp);
           }
         }
 
-        //if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-        if (left) {
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
+          rotate = true;
+        } else {
+          rotate = false;
+        }
+
+        if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
           bool intersect = false;
           for (auto &x : spawns) {
             if (Collision::PixelPerfectTest(player.sprite, x.obj, 0)) {
@@ -424,19 +483,19 @@ int main() {
         window.clear();
 
         for (int i = 0; i < (int)bullets.size(); i++) {
-            sf::Sprite& x = bullets[i];
+            sf::Sprite& x = bullets[i].sprite;
             sf::Vector2f windowSize = sf::Vector2f(window.getSize()) ;
-            if(x.getPosition().x > windowSize.x ||
+            if((x.getPosition().x > windowSize.x ||
             x.getPosition().y > windowSize.y ||
             x.getPosition().x < 0 ||
-            x.getPosition().y < 0
+            x.getPosition().y < 0) || bullets[i].toErase
             ) {
              bullets.erase(bullets.begin()+i);
               bulletsdirection.erase(bulletsdirection.begin()+i);
               i--;
               continue;
             }
-            x.move(bulletsdirection[i]);
+            x.move(bullets[i].direction * delta);
             window.draw(x);
         }
 
