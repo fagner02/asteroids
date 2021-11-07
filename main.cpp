@@ -8,7 +8,7 @@
 
 #define PI 3.1415
 
-class enemy {
+class Enemy {
   public:
     sf::Sprite obj;
     sf::Vector2f drct = sf::Vector2f(0,0);
@@ -91,7 +91,7 @@ class enemy {
       window.draw(this->obj);
     }
 
-    enemy(sf::Sprite spr, float width, float height) : obj(spr){
+    Enemy(sf::Sprite spr, float width, float height) : obj(spr){
       this->setDrctPos(width, height);
     }
 };
@@ -108,16 +108,17 @@ void adjust(T& obj) {
 
 bool testAngle(float curRotation, float angle);
 bool testAngle(float curRotation, float angle) {
-  if(curRotation >= angle - 1 && curRotation <= angle + 1) {
+  int limitDeviation = 3;
+  if(curRotation >= angle - limitDeviation && curRotation <= angle + limitDeviation) {
     return true;
   }
   if(angle > 359){
-    if(curRotation <= angle + 1 - 360 || curRotation >= angle - 1) {
+    if(curRotation <= angle + limitDeviation - 360 || curRotation >= angle - limitDeviation) {
       return true;
     }
   }
-  if(angle < 1) {
-    if(curRotation <= angle + 1 || curRotation >= angle - 1 + 360) {
+  if(angle < limitDeviation) {
+    if(curRotation <= angle + limitDeviation || curRotation >= angle - limitDeviation + 360) {
       return true;
     }
   }
@@ -154,11 +155,8 @@ class Player {
   public:
     sf::Sprite sprite;
     sf::Vector2f playerSize;
+
     Player(sf::RenderWindow& window, sf::Texture& texture) : window(window), sprite(texture) {
-      // arrow.setFillColor(sf::Color::White); 
-      // arrow.setOrigin(10, 10);
-      // arrow.setPosition(100, 80);
-     
       adjust(this->sprite);
       this->sprite.setColor(sf::Color::Cyan);
       this->sprite.setPosition(100, 100);
@@ -172,8 +170,9 @@ class Player {
       float sideX = mousePos.x - playerPos.x;
       float sideY = mousePos.y - playerPos.y;
 
+      int limitDeviation = 2;
       float pMax = (abs(sideX) > abs(sideY)) ? abs(sideX) : abs(sideY);
-      if (pMax != 0 && pMax > 1) {
+      if (pMax != 0 && pMax > limitDeviation) {
         sf::Vector2f newPos((sideX / pMax) * delta, (sideY / pMax) * delta);
         sprite.move(newPos);
         // arrow.setOrigin(10, 10);
@@ -211,7 +210,6 @@ class Player {
 
       float curRotation = sprite.getRotation();
 
-      std::cout << "angle: " << curRotation << std::endl;
       if (!testAngle(curRotation, angle)) {
         float newAngle;
 
@@ -267,6 +265,36 @@ class Bullet {
     }
 };
 
+void intersection(std::vector<Enemy>& spawns, Player& player, std::vector<sf::RectangleShape>& life, bool& intersecting) {
+  bool intersect = false;
+  for (auto &x : spawns)
+  {
+    if (Collision::PixelPerfectTest(player.sprite, x.obj, 0))
+    {
+      intersect = true;
+    }
+  }
+  if (intersect)
+  {
+    if (!intersecting)
+    {
+      std::cout << "intersecting:\n";
+      intersecting = true;
+
+      if (life.size() > 0)
+      {
+        life.pop_back();
+      }
+      player.sprite.setColor(sf::Color::Blue);
+    }
+  }
+  else
+  {
+    intersecting = false;
+    player.sprite.setColor(sf::Color::Red);
+  }
+}
+
 int main() {
     std::setlocale(LC_ALL, "spanish");
     srand(time(NULL));
@@ -288,7 +316,7 @@ int main() {
     sf::RectangleShape lifePoint(sf::Vector2f(50, 50));
     adjust(lifePoint);
     lifePoint.setFillColor(sf::Color::Green);
-    lifePoint.setPosition(window.getSize().x - 35, 10);
+    lifePoint.setPosition(window.getSize().x - 35, 35);
 
     std::vector<sf::RectangleShape> life;
 
@@ -330,7 +358,7 @@ int main() {
 
     std::vector<Bullet> bullets{};
 
-    std::vector<enemy> spawns{};
+    std::vector<Enemy> spawns{};
 
     bool isPressed = false;
     bool intersecting = false;
@@ -354,7 +382,7 @@ int main() {
 
         if(spawn.getElapsedTime().asSeconds() >= 3){
           spawn.restart();
-          spawns.push_back(enemy(enmSprite, window.getSize().x, window.getSize().y));
+          spawns.push_back(Enemy(enmSprite, window.getSize().x, window.getSize().y));
         }
 
         std::vector<int> its;
@@ -396,29 +424,9 @@ int main() {
               sf::FloatRect newView(0,0,evnt.size.width, evnt.size.height);
               window.setView(sf::View(newView));
             }
-            
-            // if(evnt.type == sf::Event::MouseButtonPressed) {
-            //   std::cout << "mouse in";
-            //   left = true;
-            // }
-            // if(evnt.type == sf::Event::MouseButtonReleased) {
-            //   std::cout << "mouse out";
-            //   left = false;
-            // }
-            // if(evnt.type == sf::Event::KeyPressed) {
-            //   if(evnt.key.code == sf::Keyboard::S) {
-            //     std::cout << "s in";
-            //     rotate = true;
-            //   }
-            // }
-            // if(evnt.type == sf::Event::KeyReleased) {
-            //   if(evnt.key.code == sf::Keyboard::S) {
-            //     std::cout << "s out";
-            //     rotate = false;
-            //   }
-            // }
-            
         }
+
+        intersection(spawns, player, life, intersecting);
 
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A )) {
           if(timeBullet.getElapsedTime().asSeconds() >=0.3) {
@@ -430,40 +438,15 @@ int main() {
             bullets.push_back(temp);
           }
         }
-
-        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
-          rotate = true;
-        } else {
-          rotate = false;
-        }
-
+        
+          
         if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-          bool intersect = false;
-          for (auto &x : spawns) {
-            if (Collision::PixelPerfectTest(player.sprite, x.obj, 0)) {
-              intersect = true;
-            }
+          if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
+           rotate = true;
+          } else {
+           rotate = false;
           }
-
-          if (intersect)
-          {
-            if (!intersecting)
-            {
-              std::cout << "intersecting:\n";
-              intersecting = true;
-
-              if (life.size() > 0)
-              {
-                life.pop_back();
-              }
-              player.sprite.setColor(sf::Color::Blue);
-            }
-          }
-          else
-          {
-            intersecting = false;
-            player.sprite.setColor(sf::Color::Red);
-          }
+          
 
           if (rotate)
           {
@@ -506,9 +489,8 @@ int main() {
         window.draw(text);
 
         if (life.empty()) {
-            player.sprite.scale(1 - (0.1 * delta), 1 - (0.1 * delta));
+          player.sprite.scale(1 - (0.05 *delta), 1 - (0.05 * delta));
         }
-        ///Home 
         
         if (!life.empty() || (life.empty() && player.sprite.getScale().x > 0.01)) {
             player.draw();
