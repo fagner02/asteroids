@@ -12,14 +12,14 @@ class Enemy {
   public:
     sf::Sprite obj;
     sf::Vector2f drct = sf::Vector2f(0,0);
-
-    sf::Vector2f generateDrct(float pos1, float side1, float side2, bool inverse) {
+    float speed = 5;
+    sf::Vector2f generateDrct(float pos, float height, float width, bool inverse) {
       float drctX;
       float drctY;
 
-      if(pos1 > side1/3 && pos1 < side1*2/3){
-        float hypt = sqrt(pow(side1/2, 2) + pow(side2, 2));
-        float angle1 = asin(side2/hypt);
+      if(pos > height/3 && pos < height*2/3){
+        float hypt = sqrt(pow(height/2, 2) + pow(width, 2));
+        float angle1 = asin(width/hypt);
 
         float angle = rand() % (int)(((PI - angle1*2) + angle1) + 1);
 
@@ -35,10 +35,10 @@ class Enemy {
         drctY /= nrml;
 
       } else {
-        float hypt1 = sqrt(pow(side2*2, 2) + pow(side1, 2));
-        float hypt2 = sqrt(pow(side2/2, 2) + pow(side1, 2));
-        float angle1 = asin((side2*2)/hypt1);
-        float angle2 = asin((side2/2)/hypt2);
+        float hypt1 = sqrt(pow(width*2, 2) + pow(height, 2));
+        float hypt2 = sqrt(pow(width/2, 2) + pow(height, 2));
+        float angle1 = asin((width*2)/hypt1);
+        float angle2 = asin((width/2)/hypt2);
         float angle = (rand() % (int)(angle1 - angle2 + 1)) + angle2;
 
         drctY = sin(angle); //(rand() % ((side2/2)*3 + 1)) + side2/2;
@@ -61,8 +61,10 @@ class Enemy {
       float posY = rand() % (int)(height + 1);
 
       if(rand() % 2) {
+        double half = height / 2;
         posX = width * (rand() % 2);
-        this->drct = generateDrct(posY, height, width, true);
+        this->drct = sf::Vector2f(1,posY/half);
+        // this->drct = generateDrct(posY, height, width, true);
         if (posY > height/2) {
           this->drct.y *= -1;
         }
@@ -70,8 +72,11 @@ class Enemy {
           this->drct.x *= -1;
         }
       } else {
+        double half = width / 2;
         posY = height * (rand() % 2);
-        this->drct = generateDrct(posX, width, height, false);
+        
+        this->drct = sf::Vector2f(posX/half,1);
+        // this->drct = generateDrct(posX, width, height, false);
         if (posY > 0) {
           this->drct.y *= -1;
         }
@@ -84,9 +89,10 @@ class Enemy {
     }
     
     void update(float delta) {
-      this->obj.move(this->drct * delta);
-      this->obj.rotate(1 * delta);
+      this->obj.move(this->drct * speed * delta);
+      this->obj.rotate(5 * delta);
     }
+    
     void draw(sf::RenderWindow &window) {
       window.draw(this->obj);
     }
@@ -151,7 +157,8 @@ sf::Vector2f bulletDirection(float rotation) {
 
 class Player {
   sf::RenderWindow& window;
-  //sf::CircleShape arrow;
+  float speed = 5;
+
   public:
     sf::Sprite sprite;
     sf::Vector2f playerSize;
@@ -173,10 +180,8 @@ class Player {
       int limitDeviation = 2;
       float pMax = (abs(sideX) > abs(sideY)) ? abs(sideX) : abs(sideY);
       if (pMax != 0 && pMax > limitDeviation) {
-        sf::Vector2f newPos((sideX / pMax) * delta, (sideY / pMax) * delta);
+        sf::Vector2f newPos((sideX / pMax) * speed * delta, (sideY / pMax) * speed * delta);
         sprite.move(newPos);
-        // arrow.setOrigin(10, 10);
-        // arrow.move(newPos);
       }
     }
 
@@ -220,7 +225,7 @@ class Player {
 
         newAngle = (newAngle < 0) ? -1 : 1;
 
-        sprite.rotate(newAngle * delta);
+        sprite.rotate(newAngle * speed * delta);
         // arrow.setOrigin(10, 20);
         // arrow.rotate(newAngle * delta);
       }
@@ -376,13 +381,15 @@ int main() {
 
     while (window.isOpen()){
         float delta = frameRate.getElapsedTime().asMilliseconds();
-        delta /= 16.6667;
-        delta *= 5;
+        delta /= 1000.0 / 60.0;
+        
         frameRate.restart();
 
         if(spawn.getElapsedTime().asSeconds() >= 3){
           spawn.restart();
-          spawns.push_back(Enemy(enmSprite, window.getSize().x, window.getSize().y));
+          for (int m = 0; m < 3; m++) {
+            spawns.push_back(Enemy(enmSprite, window.getSize().x, window.getSize().y));
+          }
         }
 
         std::vector<int> its;
@@ -416,7 +423,6 @@ int main() {
         
         
         while (window.pollEvent(evnt)){
-
             if (evnt.type == sf::Event::Closed) {
                 window.close();
             }
@@ -428,7 +434,7 @@ int main() {
 
         intersection(spawns, player, life, intersecting);
 
-        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A )) {
+        if (sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Enter)) {
           if(timeBullet.getElapsedTime().asSeconds() >=0.3) {
             timeBullet.restart();
             Bullet temp;
@@ -441,26 +447,10 @@ int main() {
         
           
         if (sf::Mouse::isButtonPressed(sf::Mouse::Left)) {
-          if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S)) {
-           rotate = true;
-          } else {
-           rotate = false;
-          }
-          
-
-          if (rotate)
-          {
-            player.rotate(delta);
-          }
-          else
-          {
-            player.move(delta);
-          }
-        }
-
-        if (sf::Mouse::isButtonPressed(sf::Mouse::Right)) {
           player.rotate(delta);
+          player.move(delta);
         }
+
         text.setString(std::to_string(score));
 
         window.clear();
@@ -489,7 +479,7 @@ int main() {
         window.draw(text);
 
         if (life.empty()) {
-          player.sprite.scale(1 - (0.05 *delta), 1 - (0.05 * delta));
+          player.sprite.scale(1 - (0.05 * delta), 1 - (0.05 * delta));
         }
         
         if (!life.empty() || (life.empty() && player.sprite.getScale().x > 0.01)) {
